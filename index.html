@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Heart Puzzle</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400;1,600;1,700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --rose: #e03060;
+    --rose-dark: #b8204a;
+    --cream: #fff8fa;
+    --blush: #f8d0dc;
+    --heart-color: #c01840;
+    --bg-tile: #f4b8cc;
+    --glass-bg: rgba(255, 248, 250, 0.55);
+    --glass-border: rgba(255, 255, 255, 0.6);
+    --shadow: rgba(180, 40, 80, 0.15);
+    --board-size: min(86vw, 380px);
+  }
+
+  html, body {
+    height: 100%; width: 100%;
+    overflow: hidden;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+  }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: radial-gradient(ellipse at 30% 20%, #fce4ec 0%, #f8bbd0 40%, #f48fb1 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #5a1a2a;
+    position: relative;
+  }
+
+  .ambient-heart {
+    position: fixed; font-size: 18px; opacity: 0.13;
+    animation: floatAmbient 14s ease-in-out infinite;
+    pointer-events: none; z-index: 0;
+  }
+  @keyframes floatAmbient {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-30px) rotate(12deg); }
+  }
+
+  h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic; font-weight: 700;
+    font-size: clamp(1.8rem, 5vw, 2.6rem);
+    color: var(--rose); margin-bottom: 4px;
+    text-shadow: 0 2px 12px rgba(224, 48, 96, 0.2);
+    z-index: 1;
+  }
+  .subtitle {
+    font-size: 0.8rem; color: #a04060;
+    margin-bottom: 12px; opacity: 0.75; z-index: 1;
+  }
+
+  .top-bar {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 10px; z-index: 1;
+    flex-wrap: wrap; justify-content: center;
+  }
+
+  .move-counter {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border); border-radius: 20px;
+    padding: 6px 16px; font-weight: 700; font-size: 0.88rem;
+    color: var(--rose-dark); box-shadow: 0 2px 8px var(--shadow);
+  }
+
+  .btn {
+    background: linear-gradient(135deg, var(--rose), #d44070);
+    color: var(--cream); border: none; border-radius: 20px;
+    padding: 7px 18px; font-family: 'Nunito', sans-serif;
+    font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    box-shadow: 0 3px 12px rgba(224, 48, 96, 0.35);
+    transition: transform 0.15s; -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { transform: scale(0.95); }
+
+  .board-wrapper {
+    background: var(--glass-bg);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--glass-border); border-radius: 20px;
+    padding: 6px;
+    box-shadow: 0 8px 40px rgba(180, 40, 80, 0.18), inset 0 1px 0 rgba(255,255,255,0.5);
+    z-index: 1;
+  }
+
+  .board {
+    width: var(--board-size); height: var(--board-size);
+    position: relative; border-radius: 14px;
+    background: rgba(240, 180, 200, 0.15);
+  }
+
+  .tile {
+    position: absolute;
+    width: calc(25% - 5px); height: calc(25% - 5px);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(1.1rem, 3vw, 1.4rem); font-weight: 700;
+    cursor: pointer;
+    transition: left 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                top 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                transform 0.1s ease, box-shadow 0.4s ease;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.35);
+    will-change: left, top;
+  }
+  .tile:active { transform: scale(0.94); }
+
+  .tile-heart {
+    background: linear-gradient(145deg, #d42050, #a01838);
+    color: rgba(255, 200, 215, 0.9);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  .tile-bg {
+    background: linear-gradient(145deg, #f8c8d8, #f0a8c0);
+    color: rgba(160, 60, 90, 0.55);
+  }
+
+  .tile.won { animation: tileGlow 1.2s ease-in-out infinite alternate; }
+  @keyframes tileGlow {
+    from { box-shadow: 0 0 12px rgba(224,48,96,0.3), 0 3px 10px rgba(0,0,0,0.1); }
+    to { box-shadow: 0 0 30px rgba(224,48,96,0.75), 0 3px 10px rgba(0,0,0,0.1); }
+  }
+  @keyframes tilePop {
+    0% { transform: scale(1); } 50% { transform: scale(1.12); } 100% { transform: scale(1); }
+  }
+
+  .goal-section { margin-top: 12px; z-index: 1; text-align: center; }
+  .goal-toggle {
+    background: none; border: none; font-family: 'Nunito', sans-serif;
+    font-size: 0.78rem; color: var(--rose-dark); cursor: pointer;
+    opacity: 0.7; display: flex; align-items: center; gap: 4px;
+    margin: 0 auto; -webkit-tap-highlight-color: transparent;
+  }
+  .goal-toggle .arrow {
+    display: inline-block; transition: transform 0.3s ease; font-size: 0.6rem;
+  }
+  .goal-toggle .arrow.open { transform: rotate(180deg); }
+  .goal-preview {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px;
+    width: 90px; margin: 6px auto 0; max-height: 0; overflow: hidden;
+    transition: max-height 0.4s ease, opacity 0.3s ease; opacity: 0;
+  }
+  .goal-preview.open { max-height: 110px; opacity: 1; }
+  .goal-cell { aspect-ratio: 1; border-radius: 3px; }
+  .goal-heart { background: var(--heart-color); }
+  .goal-bg { background: var(--bg-tile); }
+
+  /* WIN OVERLAY */
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.6s ease;
+  }
+  .overlay.active { opacity: 1; pointer-events: all; }
+  .overlay-bg {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, rgba(90,10,30,0.55) 0%, rgba(30,0,10,0.85) 100%);
+    animation: overlayPulse 3s ease-in-out infinite alternate;
+  }
+  @keyframes overlayPulse {
+    from { background: radial-gradient(ellipse at center, rgba(90,10,30,0.5) 0%, rgba(30,0,10,0.82) 100%); }
+    to { background: radial-gradient(ellipse at center, rgba(130,20,50,0.55) 0%, rgba(50,5,20,0.88) 100%); }
+  }
+  .overlay canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+  .win-card {
+    position: relative; z-index: 10;
+    background: rgba(255,248,250,0.65);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.7); border-radius: 28px;
+    padding: 36px 42px 28px; text-align: center;
+    box-shadow: 0 16px 60px rgba(0,0,0,0.35), 0 0 80px rgba(224,48,96,0.15);
+    transform: scale(0.5) translateY(40px); opacity: 0;
+    transition: transform 0.7s cubic-bezier(0.34,1.56,0.64,1), opacity 0.5s ease;
+  }
+  .overlay.active .win-card { transform: scale(1) translateY(0); opacity: 1; transition-delay: 0.3s; }
+  .win-heart-icon {
+    font-size: 3.2rem; display: block; margin-bottom: 4px;
+    animation: heartBeat 1s ease-in-out infinite;
+    filter: drop-shadow(0 4px 20px rgba(224,48,96,0.5));
+  }
+  @keyframes heartBeat {
+    0%,100% { transform: scale(1); } 15% { transform: scale(1.28); }
+    30% { transform: scale(1); } 45% { transform: scale(1.18); } 60% { transform: scale(1); }
+  }
+  .win-card h2 {
+    font-family: 'Cormorant Garamond', serif; font-style: italic; font-weight: 700;
+    font-size: clamp(1.8rem,5vw,2.4rem); color: var(--rose); margin-bottom: 2px;
+  }
+  .win-card .win-sub {
+    font-family: 'Cormorant Garamond', serif; font-style: italic;
+    font-size: 1.05rem; color: #a04060; margin-bottom: 12px;
+  }
+  .win-card .win-moves {
+    font-weight: 800; font-size: 1rem; color: var(--rose-dark);
+    margin-bottom: 18px; background: rgba(224,48,96,0.08);
+    display: inline-block; padding: 4px 16px; border-radius: 14px;
+  }
+
+  .float-heart {
+    position: fixed; bottom: -50px; z-index: 102; pointer-events: none;
+    animation: riseHeart var(--dur, 4s) ease-out forwards;
+    filter: drop-shadow(0 2px 6px rgba(200,30,70,0.3));
+  }
+  @keyframes riseHeart {
+    0% { opacity: 0.9; transform: translateY(0) scale(0.8) rotate(0deg); }
+    20% { opacity: 1; transform: translateY(-20vh) scale(1) rotate(5deg); }
+    100% { opacity: 0; transform: translateY(-120vh) scale(1.2) rotate(var(--rot, 20deg)); }
+  }
+  .screen-flash {
+    position: fixed; inset: 0; z-index: 99;
+    background: rgba(255,180,200,0.55); pointer-events: none;
+    animation: flashAnim 0.7s ease-out forwards;
+  }
+  @keyframes flashAnim { 0% { opacity: 1; } 100% { opacity: 0; } }
+  .burst-ring {
+    position: fixed; z-index: 98; width: 10px; height: 10px;
+    border-radius: 50%; border: 3px solid var(--rose);
+    pointer-events: none; left: 50%; top: 50%;
+    animation: ringExpand 1.2s ease-out forwards;
+  }
+  @keyframes ringExpand {
+    0% { transform: translate(-50%,-50%) scale(0); opacity: 0.7; }
+    100% { transform: translate(-50%,-50%) scale(100); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ambient-heart" style="left:8%;top:12%;animation-delay:-2s;">♥</div>
+<div class="ambient-heart" style="left:88%;top:22%;animation-delay:-5s;font-size:14px;">♥</div>
+<div class="ambient-heart" style="left:72%;top:72%;animation-delay:-8s;font-size:22px;">♥</div>
+<div class="ambient-heart" style="left:12%;top:82%;animation-delay:-3s;font-size:12px;">♥</div>
+
+<h1>Heart Puzzle</h1>
+<p class="subtitle">slide the tiles to reveal the heart ♥</p>
+
+<div class="top-bar">
+  <div class="move-counter" id="moveCounter">Moves: 0</div>
+  <button class="btn" id="shuffleBtn">✦ Shuffle</button>
+</div>
+
+<div class="board-wrapper">
+  <div class="board" id="board"></div>
+</div>
+
+<div class="goal-section">
+  <button class="goal-toggle" id="goalToggle">
+    <span>Goal preview</span>
+    <span class="arrow" id="goalArrow">▼</span>
+  </button>
+  <div class="goal-preview" id="goalPreview"></div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-bg"></div>
+  <canvas id="fireworksCanvas"></canvas>
+  <div class="win-card">
+    <span class="win-heart-icon">❤️</span>
+    <h2>You did it!</h2>
+    <p class="win-sub">the heart is complete</p>
+    <div class="win-moves" id="winMoves">0 moves</div><br>
+    <button class="btn" id="playAgainBtn" style="margin-top:4px;">Play Again ♥</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ===== HEART PATTERN =====
+  // 0 = pink/bg tile (unique, shows number), 1 = crimson/heart tile (interchangeable, shows ♥)
+  // Row 1: bg, heart, heart, bg
+  // Row 2: heart, heart, heart, heart
+  // Row 3: heart, heart, heart, heart
+  // Row 4: bg, heart, heart, bg
+  const HEART = [
+    0, 1, 1, 0,
+    1, 1, 1, 1,
+    1, 1, 1, 1,
+    0, 1, 1, 0
+  ];
+
+  // Which tile numbers are "bg" tiles (pink, show number) — these must be in exact positions
+  // Tile 1 → position 0, Tile 4 → position 3, Tile 13 → position 12
+  // (Tile "16" would be position 15, but that's the empty slot)
+  const BG_TILES = { 1: 0, 4: 3, 13: 12 };
+  // Position 15 must be empty (0)
+  // All heart positions (1,2,4,5,6,7,8,9,10,11,13,14) just need ANY heart tile
+
+  const N = 4;
+  const TOTAL = 16;
+
+  // state[position] = tile number (0 = empty)
+  let state = [];
+  let moves = 0;
+  let won = false;
+
+  const $ = id => document.getElementById(id);
+  const board = $('board');
+  const overlay = $('overlay');
+  const canvas = $('fireworksCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // ===== GOAL PREVIEW =====
+  const gp = $('goalPreview');
+  for (let i = 0; i < 16; i++) {
+    const c = document.createElement('div');
+    c.className = 'goal-cell ' + (HEART[i] ? 'goal-heart' : 'goal-bg');
+    gp.appendChild(c);
+  }
+  let goalOpen = false;
+  $('goalToggle').onclick = () => {
+    goalOpen = !goalOpen;
+    gp.classList.toggle('open', goalOpen);
+    $('goalArrow').classList.toggle('open', goalOpen);
+  };
+
+  // ===== CREATE TILES =====
+  const tileEls = {};
+  for (let n = 1; n <= 15; n++) {
+    const el = document.createElement('div');
+    const isHeart = HEART[n - 1]; // tile n's visual based on its solved position
+    el.className = 'tile ' + (isHeart ? 'tile-heart' : 'tile-bg');
+    el.textContent = isHeart ? '♥' : n;
+    el.dataset.isHeart = isHeart ? '1' : '0';
+    board.appendChild(el);
+    tileEls[n] = el;
+  }
+
+  function layout() {
+    for (let i = 0; i < 16; i++) {
+      const n = state[i];
+      if (n === 0) continue;
+      const row = Math.floor(i / N), col = i % N;
+      tileEls[n].style.left = (col * 25 + 0.7) + '%';
+      tileEls[n].style.top  = (row * 25 + 0.7) + '%';
+    }
+  }
+
+  function findEmpty() { return state.indexOf(0); }
+
+  function getNeighbors(i) {
+    const r = Math.floor(i / N), c = i % N, out = [];
+    if (r > 0) out.push(i - N);
+    if (r < N - 1) out.push(i + N);
+    if (c > 0) out.push(i - 1);
+    if (c < N - 1) out.push(i + 1);
+    return out;
+  }
+
+  // ===== WIN CHECK =====
+  // The puzzle is solved when:
+  // 1. The empty space is at position 15 (bottom-right)
+  // 2. Each pink/bg tile (1, 4, 13) is in its correct position (0, 3, 12)
+  // 3. Every heart position contains ANY heart tile (they all look the same)
+  function checkSolved() {
+    // Empty must be at position 15
+    if (state[15] !== 0) return false;
+
+    // Each bg tile must be in its exact position
+    for (const [tileStr, pos] of Object.entries(BG_TILES)) {
+      const tileNum = parseInt(tileStr);
+      if (state[pos] !== tileNum) return false;
+    }
+
+    // Every heart position must contain a heart-type tile
+    for (let i = 0; i < 16; i++) {
+      if (i === 15) continue; // empty slot, already checked
+      if (HEART[i] === 1) {
+        // This position should have a heart tile
+        const tileHere = state[i];
+        if (tileHere === 0) return false;
+        // Is this tile a heart tile? Check HEART[tileHere - 1]
+        if (HEART[tileHere - 1] !== 1) return false;
+      }
+      // bg positions already checked via BG_TILES
+    }
+
+    return true;
+  }
+
+  // ===== MOVE =====
+  function slideTile(boardPos) {
+    if (won) return;
+    if (boardPos < 0 || boardPos >= 16) return;
+    if (state[boardPos] === 0) return;
+
+    const emptyPos = findEmpty();
+    if (!getNeighbors(boardPos).includes(emptyPos)) return;
+
+    state[emptyPos] = state[boardPos];
+    state[boardPos] = 0;
+    moves++;
+    $('moveCounter').textContent = 'Moves: ' + moves;
+    layout();
+
+    if (checkSolved()) {
+      won = true;
+      setTimeout(triggerWin, 350);
+    }
+  }
+
+  // Backup poll
+  setInterval(() => {
+    if (!won && moves > 0 && checkSolved()) {
+      won = true;
+      triggerWin();
+    }
+  }, 500);
+
+  // ===== SHUFFLE =====
+  function shuffle() {
+    won = false;
+    overlay.classList.remove('active');
+    Object.values(tileEls).forEach(el => { el.classList.remove('won'); el.style.animation = ''; });
+    document.querySelectorAll('.float-heart,.screen-flash,.burst-ring').forEach(e => e.remove());
+    if (fwAnimId) { cancelAnimationFrame(fwAnimId); fwAnimId = null; }
+
+    moves = 0;
+    $('moveCounter').textContent = 'Moves: 0';
+
+    // Start from solved, random walk
+    state = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0];
+    let lastE = -1;
+    for (let i = 0; i < 500; i++) {
+      const ei = findEmpty();
+      const nb = getNeighbors(ei).filter(x => x !== lastE);
+      const pick = nb[Math.floor(Math.random() * nb.length)];
+      lastE = ei;
+      state[ei] = state[pick];
+      state[pick] = 0;
+    }
+    while (checkSolved()) {
+      const ei = findEmpty();
+      const nb = getNeighbors(ei);
+      state[ei] = state[nb[0]];
+      state[nb[0]] = 0;
+    }
+
+    layout();
+  }
+
+  // ===== POINTER HANDLING =====
+  let activePtr = null, startX = 0, startY = 0, startCell = -1;
+
+  board.addEventListener('pointerdown', e => {
+    if (activePtr !== null) return;
+    e.preventDefault();
+    activePtr = e.pointerId;
+    board.setPointerCapture(e.pointerId);
+    startX = e.clientX; startY = e.clientY;
+    const rect = board.getBoundingClientRect();
+    const col = Math.floor((e.clientX - rect.left) / (rect.width / N));
+    const row = Math.floor((e.clientY - rect.top) / (rect.height / N));
+    startCell = (row >= 0 && row < N && col >= 0 && col < N) ? row * N + col : -1;
+  });
+
+  board.addEventListener('pointerup', e => {
+    if (e.pointerId !== activePtr) return;
+    activePtr = null;
+    if (startCell < 0) return;
+
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if (Math.hypot(dx, dy) < 15) {
+      slideTile(startCell);
+    } else {
+      const ei = findEmpty();
+      const er = Math.floor(ei / N), ec = ei % N;
+      let target = -1;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        target = dx > 0 ? er * N + (ec - 1) : er * N + (ec + 1);
+      } else {
+        target = dy > 0 ? (er - 1) * N + ec : (er + 1) * N + ec;
+      }
+      if (target >= 0 && target < 16) slideTile(target);
+    }
+    startCell = -1;
+  });
+
+  board.addEventListener('pointercancel', e => {
+    if (e.pointerId === activePtr) activePtr = null;
+  });
+
+  $('shuffleBtn').onclick = shuffle;
+  $('playAgainBtn').onclick = shuffle;
+
+  // ===== WIN CELEBRATION =====
+  function triggerWin() {
+    Object.values(tileEls).forEach((el, i) => {
+      setTimeout(() => {
+        el.style.animation = 'tilePop 0.35s ease-out';
+        el.classList.add('won');
+        setTimeout(() => { el.style.animation = ''; }, 360);
+      }, i * 40);
+    });
+
+    const flash = document.createElement('div');
+    flash.className = 'screen-flash';
+    document.body.appendChild(flash);
+    flash.onanimationend = () => flash.remove();
+
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        const ring = document.createElement('div');
+        ring.className = 'burst-ring';
+        ring.style.borderColor = ['#e03060','#ff6090','#ff80b0'][i];
+        document.body.appendChild(ring);
+        ring.onanimationend = () => ring.remove();
+      }, i * 180);
+    }
+
+    setTimeout(() => {
+      $('winMoves').textContent = moves + ' move' + (moves !== 1 ? 's' : '');
+      overlay.classList.add('active');
+      startFireworks();
+      spawnHearts();
+      if (navigator.vibrate) navigator.vibrate([50, 30, 80, 30, 120]);
+    }, 450);
+  }
+
+  // ---- FIREWORKS ----
+  let particles = [], fwAnimId = null;
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth * devicePixelRatio;
+    canvas.height = window.innerHeight * devicePixelRatio;
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  }
+
+  function drawHeart(cx, cy, s) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + s * 0.3);
+    ctx.bezierCurveTo(cx, cy - s * 0.15, cx - s * 0.6, cy - s * 0.45, cx - s * 0.6, cy - s * 0.05);
+    ctx.bezierCurveTo(cx - s * 0.6, cy + s * 0.25, cx, cy + s * 0.6, cx, cy + s * 0.75);
+    ctx.bezierCurveTo(cx, cy + s * 0.6, cx + s * 0.6, cy + s * 0.25, cx + s * 0.6, cy - s * 0.05);
+    ctx.bezierCurveTo(cx + s * 0.6, cy - s * 0.45, cx, cy - s * 0.15, cx, cy + s * 0.3);
+    ctx.closePath();
+  }
+
+  const COLORS = ['#ff2060','#ff4080','#e03060','#ff80a0','#ff1050','#ffb0c8','#d01050','#ff6090','#ff90b0','#c82050'];
+
+  function addBurst(x, y, count) {
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+      const speed = 2 + Math.random() * 4.5;
+      particles.push({
+        x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        size: 2.5 + Math.random() * 5,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        life: 1, decay: 0.007 + Math.random() * 0.007,
+        gravity: 0.02 + Math.random() * 0.015,
+        rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 0.12,
+        trail: Math.random() > 0.5
+      });
+    }
+  }
+
+  function addHeartBurst(cx, cy) {
+    for (let i = 0; i < 60; i++) {
+      const t = (i / 60) * Math.PI * 2;
+      const hx = 16 * Math.pow(Math.sin(t), 3);
+      const hy = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+      const sc = 2.5 + Math.random() * 1.5;
+      particles.push({
+        x: cx, y: cy, vx: hx * sc * 0.14, vy: hy * sc * 0.14,
+        size: 3 + Math.random() * 3.5,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        life: 1, decay: 0.005 + Math.random() * 0.004,
+        gravity: 0.012, rot: 0, spin: 0, trail: false
+      });
+    }
+  }
+
+  function launchRocket(x) {
+    const h = window.innerHeight;
+    const endY = 50 + Math.random() * (h * 0.35);
+    const steps = 18;
+    for (let i = 0; i < steps; i++) {
+      setTimeout(() => {
+        const cy = h + 10 + (endY - h - 10) * (i / steps);
+        particles.push({
+          x: x + (Math.random()-0.5)*4, y: cy,
+          vx: (Math.random()-0.5)*0.4, vy: 0.2+Math.random()*0.3,
+          size: 1.5+Math.random()*2, color: '#ffcc80',
+          life: 0.8, decay: 0.04, gravity: 0.01, rot: 0, spin: 0, trail: false
+        });
+      }, i * 22);
+    }
+    setTimeout(() => {
+      if (Math.random() > 0.35) addBurst(x, endY, 35 + Math.floor(Math.random()*20));
+      else addHeartBurst(x, endY);
+    }, steps * 22 + 40);
+  }
+
+  function startFireworks() {
+    resizeCanvas();
+    particles = [];
+    const w = window.innerWidth, h = window.innerHeight;
+    addHeartBurst(w/2, h*0.35);
+    setTimeout(() => addBurst(w*0.2, h*0.28, 35), 150);
+    setTimeout(() => addBurst(w*0.8, h*0.28, 35), 250);
+    let rc = 0;
+    function nextR() {
+      if (rc >= 22 || !overlay.classList.contains('active')) return;
+      launchRocket(35 + Math.random()*(w-70)); rc++;
+      setTimeout(nextR, 280 + Math.random()*450);
+    }
+    setTimeout(nextR, 500);
+    [1800,3200,4800,6500].forEach(t => {
+      setTimeout(() => {
+        if (overlay.classList.contains('active'))
+          addHeartBurst(w*(0.2+Math.random()*0.6), h*(0.25+Math.random()*0.2));
+      }, t);
+    });
+    function animate() {
+      ctx.clearRect(0, 0, w, h);
+      for (let i = particles.length-1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx; p.y += p.vy;
+        p.vy += p.gravity; p.vx *= 0.994;
+        p.life -= p.decay; p.rot += p.spin;
+        if (p.life <= 0) { particles.splice(i,1); continue; }
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, p.life*1.5);
+        ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        drawHeart(0, 0, p.size); ctx.fill();
+        ctx.globalAlpha *= 0.25;
+        drawHeart(0, 0, p.size*1.6); ctx.fill();
+        ctx.restore();
+        if (p.trail && p.life > 0.3) {
+          ctx.save(); ctx.globalAlpha = p.life*0.12;
+          ctx.fillStyle = p.color;
+          drawHeart(p.x-p.vx*2, p.y-p.vy*2, p.size*0.55); ctx.fill();
+          ctx.restore();
+        }
+      }
+      if (overlay.classList.contains('active') || particles.length > 0)
+        fwAnimId = requestAnimationFrame(animate);
+      else fwAnimId = null;
+    }
+    if (fwAnimId) cancelAnimationFrame(fwAnimId);
+    animate();
+  }
+
+  function spawnHearts() {
+    const emojis = ['❤️','💕','💖','💗','💓','🩷','💘','💝','♥️','❣️','🌹'];
+    let c = 0;
+    const iv = setInterval(() => {
+      if (c >= 45 || !overlay.classList.contains('active')) { clearInterval(iv); return; }
+      const el = document.createElement('div');
+      el.className = 'float-heart';
+      el.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+      el.style.left = (2+Math.random()*96)+'%';
+      el.style.setProperty('--dur', (3+Math.random()*3)+'s');
+      el.style.setProperty('--rot', (Math.random()*40-20)+'deg');
+      el.style.fontSize = (18+Math.random()*24)+'px';
+      document.body.appendChild(el);
+      el.onanimationend = () => el.remove();
+      c++;
+    }, 110);
+  }
+
+  window.addEventListener('resize', () => {
+    if (overlay.classList.contains('active')) resizeCanvas();
+  });
+
+  shuffle();
+})();
+</script>
+</body>
+</html>
